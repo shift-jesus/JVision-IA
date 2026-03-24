@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JVision AI — Simulación Demográfica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #06080f;
+  --bg2: #0d1120;
+  --bg3: #141928;
+  --surface: #1a2035;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.14);
+  --text: #e8ecf4;
+  --text2: #8b95ad;
+  --text3: #4a5270;
+  --accent: #4af4a8;
+  --accent2: #a78bfa;
+  --accent3: #f97316;
+  --red: #f4504a;
+  --blue: #4a9ef4;
+  --gold: #f4d44a;
+  --font-display: 'DM Serif Display', serif;
+  --font-ui: 'Syne', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  overflow-x: hidden;
+  cursor: default;
+}
+
+/* ─── NOISE TEXTURE ─── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.4;
+}
+
+/* ─── NAV ─── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 900;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 3rem;
+  height: 64px;
+  background: rgba(6,8,15,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-logo {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-ui); font-size: 18px; font-weight: 800;
+  letter-spacing: -0.02em; color: var(--text);
+  text-decoration: none;
+}
+
+.logo-mark {
+  width: 32px; height: 32px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.logo-mark svg { width: 18px; height: 18px; }
+
+.nav-links { display: flex; gap: 2rem; }
+.nav-links a {
+  font-size: 13px; font-weight: 500; letter-spacing: 0.04em;
+  color: var(--text2); text-decoration: none;
+  text-transform: uppercase; transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--accent); }
+
+.nav-cta {
+  padding: 8px 20px;
+  background: var(--accent);
+  color: var(--bg);
+  border: none; border-radius: 6px;
+  font-family: var(--font-ui); font-size: 13px; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  cursor: pointer; transition: all 0.2s;
+  text-decoration: none;
+}
+.nav-cta:hover { background: #6fffc0; transform: translateY(-1px); }
+
+/* ─── HERO ─── */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 6rem 2rem 4rem;
+  position: relative; overflow: hidden;
+  text-align: center;
+}
+
+.hero-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(74,244,168,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(74,244,168,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 40%, transparent 100%);
+}
+
+.hero-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+}
+.orb1 { width: 600px; height: 600px; background: radial-gradient(circle, rgba(74,244,168,0.12), transparent 70%); top: -100px; left: 50%; transform: translateX(-50%); }
+.orb2 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(167,139,250,0.1), transparent 70%); bottom: 0; right: -100px; }
+.orb3 { width: 300px; height: 300px; background: radial-gradient(circle, rgba(249,115,22,0.08), transparent 70%); bottom: 100px; left: -50px; }
+
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 16px;
+  background: rgba(74,244,168,0.08);
+  border: 1px solid rgba(74,244,168,0.2);
+  border-radius: 100px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--accent);
+  margin-bottom: 2rem;
+  position: relative; z-index: 1;
+  animation: fadeUp 0.8s ease both;
+}
+
+.badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.5)} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(52px, 8vw, 110px);
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  position: relative; z-index: 1;
+  animation: fadeUp 0.9s 0.1s ease both;
+}
+
+.hero h1 em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.hero h1 .line2 {
+  display: block;
+  color: var(--text2);
+}
+
+.hero-sub {
+  max-width: 560px;
+  font-size: 16px; font-weight: 400;
+  color: var(--text2); line-height: 1.7;
+  margin: 2rem auto 2.5rem;
+  position: relative; z-index: 1;
+  animation: fadeUp 1s 0.2s ease both;
+}
+
+.hero-actions {
+  display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;
+  position: relative; z-index: 1;
+  animation: fadeUp 1s 0.3s ease both;
+}
+
+.btn-primary {
+  padding: 14px 32px;
+  background: var(--accent);
+  color: var(--bg);
+  border: none; border-radius: 8px;
+  font-family: var(--font-ui); font-size: 14px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-primary:hover { background: #6fffc0; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(74,244,168,0.25); }
+
+.btn-ghost {
+  padding: 14px 32px;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border2); border-radius: 8px;
+  font-family: var(--font-ui); font-size: 14px; font-weight: 600;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-ghost:hover { background: var(--surface); border-color: var(--border2); }
+
+/* ─── STATS BAR ─── */
+.stats-bar {
+  display: flex; justify-content: center; gap: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  overflow: hidden;
+  animation: fadeIn 1s 0.5s ease both;
+}
+
+.stat-item {
+  flex: 1; max-width: 240px;
+  padding: 2rem;
+  text-align: center;
+  border-right: 1px solid var(--border);
+  position: relative;
+}
+.stat-item:last-child { border-right: none; }
+
+.stat-number {
+  font-family: var(--font-display);
+  font-size: 42px;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-number span { color: var(--accent); }
+
+.stat-label {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text3);
+}
+
+/* ─── SECTION LAYOUT ─── */
+section {
+  padding: 6rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.section-tag {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 1rem;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-tag::before {
+  content: '';
+  width: 24px; height: 1px;
+  background: var(--accent);
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 4vw, 52px);
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+.section-title em { font-style: italic; color: var(--accent2); }
+
+.section-sub {
+  font-size: 16px; color: var(--text2);
+  line-height: 1.7; max-width: 560px;
+  margin-bottom: 3rem;
+}
+
+/* ─── FEATURES ─── */
+#features { padding: 6rem 2rem; }
+.features-inner { max-width: 1200px; margin: 0 auto; }
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-top: 3rem;
+}
+
+.feature-card {
+  background: var(--bg2);
+  padding: 2rem;
+  transition: background 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.feature-card:hover { background: var(--bg3); }
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-card, var(--accent)), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.feature-card:hover::before { opacity: 1; }
+
+.feature-icon {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  margin-bottom: 1.25rem;
+}
+
+.feature-title {
+  font-size: 16px; font-weight: 700;
+  color: var(--text); margin-bottom: 8px;
+}
+.feature-desc { font-size: 14px; color: var(--text2); line-height: 1.7; }
+
+/* ─── SIMULATOR SECTION ─── */
+#simulator {
+  padding: 6rem 0;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.sim-header {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem 3rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+
+.sim-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.scenario-tabs {
+  display: flex; gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+
+.stab {
+  flex: 1; min-width: 140px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none; border-radius: 8px;
+  font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text3); cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.stab.active { background: var(--surface); color: var(--text); }
+.stab.active.s0 { color: var(--accent); }
+.stab.active.s1 { color: var(--accent2); }
+.stab.active.s2 { color: var(--accent3); }
+.stab.active.s3 { color: var(--gold); }
+
+.sim-panel { display: none; }
+.sim-panel.active { display: grid; grid-template-columns: 380px 1fr; gap: 1.5rem; }
+
+@media (max-width: 860px) {
+  .sim-panel.active { grid-template-columns: 1fr; }
+}
+
+.sim-controls {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.ctrl-group { margin-bottom: 1.5rem; }
+.ctrl-label {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 1rem;
+}
+
+.ctrl-row {
+  display: flex; align-items: center;
+  gap: 10px; margin-bottom: 14px;
+}
+.ctrl-row label { font-size: 12px; color: var(--text2); flex: 1; line-height: 1.4; }
+
+input[type=range] {
+  width: 100px;
+  -webkit-appearance: none;
+  height: 3px;
+  background: var(--surface);
+  border-radius: 2px;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+.ctrl-val {
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 500;
+  color: var(--accent);
+  min-width: 48px; text-align: right;
+}
+
+.sim-output {
+  display: flex; flex-direction: column; gap: 1.5rem;
+}
+
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 600px) { .metrics-row { grid-template-columns: repeat(2,1fr); } }
+
+.metric-tile {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+}
+.mt-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+.mt-val { font-family: var(--font-display); font-size: 28px; color: var(--text); line-height: 1; margin-bottom: 4px; }
+.mt-sub { font-size: 11px; color: var(--text3); }
+.mt-danger .mt-val { color: var(--red); }
+.mt-warn .mt-val { color: var(--accent3); }
+.mt-ok .mt-val { color: var(--accent); }
+
+.chart-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+.chart-title { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text3); margin-bottom: 1rem; }
+.chart-panel canvas { display: block; }
+
+.risks-timeline-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;
+}
+@media (max-width: 600px) { .risks-timeline-row { grid-template-columns: 1fr; } }
+
+.risk-panel, .tl-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.panel-title { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); margin-bottom: 1.25rem; }
+
+.risk-row { margin-bottom: 14px; }
+.risk-header { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+.risk-bar-bg { height: 4px; background: var(--surface); border-radius: 2px; overflow: hidden; }
+.risk-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s cubic-bezier(.4,0,.2,1); }
+
+.tl-item { display: flex; gap: 12px; margin-bottom: 16px; }
+.tl-line { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+.tl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.tl-stem { width: 1px; flex: 1; background: var(--border); margin-top: 4px; }
+.tl-content { padding-bottom: 4px; }
+.tl-year { font-family: var(--font-mono); font-size: 11px; color: var(--accent); margin-bottom: 3px; }
+.tl-text { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+.analyze-btn {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  font-family: var(--font-ui); font-size: 12px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text2); cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 0.5rem;
+}
+.analyze-btn:hover { background: var(--surface); color: var(--accent); border-color: rgba(74,244,168,0.3); }
+
+/* ─── METHODOLOGY ─── */
+#methodology { padding: 6rem 2rem; max-width: 1200px; margin: 0 auto; }
+
+.method-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  margin-top: 3rem;
+  align-items: start;
+}
+@media (max-width: 720px) { .method-grid { grid-template-columns: 1fr; } }
+
+.method-steps { display: flex; flex-direction: column; gap: 0; }
+.method-step {
+  display: flex; gap: 1.5rem;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.method-step:last-child { border-bottom: none; }
+
+.step-num {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 500;
+  color: var(--text3);
+  min-width: 32px;
+  padding-top: 3px;
+}
+.step-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.step-desc { font-size: 13px; color: var(--text2); line-height: 1.7; }
+
+.method-visual {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2rem;
+  position: sticky;
+  top: 80px;
+}
+
+.causal-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.cf-node {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px; font-weight: 600;
+  text-align: center;
+  position: relative;
+}
+
+.cf-arrow {
+  text-align: center;
+  font-size: 18px;
+  color: var(--text3);
+  padding: 4px;
+}
+
+.cf-a { background: rgba(74,244,168,0.1); color: var(--accent); border: 1px solid rgba(74,244,168,0.2); }
+.cf-b { background: rgba(167,139,250,0.1); color: var(--accent2); border: 1px solid rgba(167,139,250,0.2); }
+.cf-c { background: rgba(249,115,22,0.1); color: var(--accent3); border: 1px solid rgba(249,115,22,0.2); }
+.cf-d { background: rgba(244,80,74,0.1); color: var(--red); border: 1px solid rgba(244,80,74,0.2); }
+
+.flow-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text3);
+  text-align: center; padding: 6px;
+}
+
+/* ─── FOOTER ─── */
+footer {
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding: 3rem 2rem;
+}
+
+.footer-inner {
+  max-width: 1200px; margin: 0 auto;
+  display: flex; align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.footer-logo {
+  font-family: var(--font-ui); font-size: 16px; font-weight: 800;
+  letter-spacing: -0.02em;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.footer-mark {
+  width: 24px; height: 24px;
+  background: var(--accent);
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.footer-copy { font-size: 12px; color: var(--text3); }
+.footer-links { display: flex; gap: 1.5rem; }
+.footer-links a { font-size: 12px; color: var(--text3); text-decoration: none; transition: color 0.2s; }
+.footer-links a:hover { color: var(--accent); }
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--surface); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ─── MOBILE NAV ─── */
+@media (max-width: 720px) {
+  nav { padding: 0 1.5rem; }
+  .nav-links { display: none; }
+  .stats-bar { flex-wrap: wrap; }
+  .stat-item { min-width: 140px; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 18 18" fill="none">
+        <circle cx="9" cy="9" r="3" fill="#06080f"/>
+        <path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.22 4.22l1.42 1.42M12.36 12.36l1.42 1.42M12.36 5.64L10.94 7.06M5.64 12.36L4.22 13.78" stroke="#06080f" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    JVision AI
+  </a>
+  <div class="nav-links">
+    <a href="#features">Módulos</a>
+    <a href="#simulator">Simulador</a>
+    <a href="#methodology">Metodología</a>
+  </div>
+  <a href="#simulator" class="nav-cta">Iniciar simulación</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-grid"></div>
+  <div class="orb1 hero-orb"></div>
+  <div class="orb2 hero-orb"></div>
+  <div class="orb3 hero-orb"></div>
+
+  <div class="hero-badge">
+    <span class="badge-dot"></span>
+    Motor de simulación activo
+  </div>
+
+  <h1>
+    Inteligencia<br>
+    <em>demográfica</em>
+    <span class="line2">del futuro</span>
+  </h1>
+
+  <p class="hero-sub">
+    JVision AI modela escenarios poblacionales hipotéticos con lógica causal en cadena. Proyecta el impacto de políticas, crisis y tendencias sobre estructuras demográficas reales.
+  </p>
+
+  <div class="hero-actions">
+    <button class="btn-primary" onclick="document.getElementById('simulator').scrollIntoView({behavior:'smooth'})">Explorar el simulador</button>
+    <button class="btn-ghost" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">Ver módulos</button>
+  </div>
+</div>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <div class="stat-number">4<span>+</span></div>
+    <div class="stat-label">Escenarios de crisis</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-number">50<span>—</span>75</div>
+    <div class="stat-label">Años de proyección</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-number">20<span>+</span></div>
+    <div class="stat-label">Variables parametrizables</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-number">∞</div>
+    <div class="stat-label">Combinaciones posibles</div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<div id="features" style="padding:6rem 2rem; background: var(--bg);">
+  <div class="features-inner">
+    <div class="section-tag">Módulos del sistema</div>
+    <div class="section-title">Cuatro vectores de <em>análisis</em></div>
+    <p class="section-sub">Cada módulo aborda un tipo de presión demográfica con variables específicas, métricas de riesgo y cadenas causales propias.</p>
+
+    <div class="features-grid">
+      <div class="feature-card" style="--accent-card: var(--accent)">
+        <div class="feature-icon" style="background:rgba(74,244,168,0.1)">📉</div>
+        <div class="feature-title">Declive poblacional</div>
+        <div class="feature-desc">Modela el envejecimiento progresivo, la caída de la fecundidad y sus efectos en cascada sobre pensiones, mercado laboral y déficit fiscal.</div>
+      </div>
+      <div class="feature-card" style="--accent-card: var(--accent2)">
+        <div class="feature-icon" style="background:rgba(167,139,250,0.1)">✈️</div>
+        <div class="feature-title">Migración masiva</div>
+        <div class="feature-desc">Evalúa flujos migratorios y su impacto en la estructura productiva, la cohesión social y la dependencia de remesas como variable de riesgo.</div>
+      </div>
+      <div class="feature-card" style="--accent-card: var(--accent3)">
+        <div class="feature-icon" style="background:rgba(249,115,22,0.1)">🔥</div>
+        <div class="feature-title">Colapso económico</div>
+        <div class="feature-desc">Analiza cómo una crisis económica severa retroalimenta la mortalidad, la natalidad y genera migraciones forzadas con efecto dominó.</div>
+      </div>
+      <div class="feature-card" style="--accent-card: var(--gold)">
+        <div class="feature-icon" style="background:rgba(244,212,74,0.1)">🚀</div>
+        <div class="feature-title">Crecimiento acelerado</div>
+        <div class="feature-desc">Proyecta la presión de un boom demográfico sobre recursos alimentarios, capacidad urbana, infraestructura educativa y empleo juvenil.</div>
+      </div>
+      <div class="feature-card" style="--accent-card: var(--blue)">
+        <div class="feature-icon" style="background:rgba(74,158,244,0.1)">⚡</div>
+        <div class="feature-title">Análisis en tiempo real</div>
+        <div class="feature-desc">Cada ajuste de parámetro recalcula instantáneamente métricas, riesgos estructurales y curvas de proyección temporal hasta 2075.</div>
+      </div>
+      <div class="feature-card" style="--accent-card: var(--red)">
+        <div class="feature-icon" style="background:rgba(244,80,74,0.1)">🧠</div>
+        <div class="feature-title">IA interpretativa</div>
+        <div class="feature-desc">Integración con motor de IA para generar análisis narrativos profundos: lógica causal, umbrales de colapso y recomendaciones de política.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SIMULATOR -->
+<div id="simulator">
+  <div class="sim-header">
+    <div>
+      <div class="section-tag">Motor de simulación</div>
+      <div class="section-title" style="margin-bottom:0">Configura tu <em>escenario</em></div>
+    </div>
+    <p style="font-size:13px;color:var(--text2);max-width:320px;line-height:1.7">Ajusta los parámetros con los sliders. El sistema recalcula proyecciones y riesgos instantáneamente.</p>
+  </div>
+
+  <div class="sim-container">
+    <div class="scenario-tabs">
+      <button class="stab active s0" onclick="switchSim(0)">01 / Declive poblacional</button>
+      <button class="stab s1" onclick="switchSim(1)">02 / Migración masiva</button>
+      <button class="stab s2" onclick="switchSim(2)">03 / Colapso económico</button>
+      <button class="stab s3" onclick="switchSim(3)">04 / Crecimiento acelerado</button>
+    </div>
+
+    <!-- PANEL 0: DECLIVE -->
+    <div class="sim-panel active" id="spanel-0">
+      <div class="sim-controls">
+        <div class="ctrl-group">
+          <div class="ctrl-label">Parámetros demográficos</div>
+          <div class="ctrl-row"><label>Tasa de fecundidad (hijos/mujer)</label><input type="range" min="0.5" max="3.5" step="0.1" value="1.5" id="d-f" oninput="updateSim(0)"><span class="ctrl-val" id="d-f-v">1.5</span></div>
+          <div class="ctrl-row"><label>Población base (millones)</label><input type="range" min="5" max="200" step="1" value="50" id="d-p" oninput="updateSim(0)"><span class="ctrl-val" id="d-p-v">50M</span></div>
+          <div class="ctrl-row"><label>% mayores de 65 años</label><input type="range" min="5" max="35" step="1" value="12" id="d-e" oninput="updateSim(0)"><span class="ctrl-val" id="d-e-v">12%</span></div>
+          <div class="ctrl-row"><label>Gasto social (% del PIB)</label><input type="range" min="5" max="35" step="1" value="15" id="d-s" oninput="updateSim(0)"><span class="ctrl-val" id="d-s-v">15%</span></div>
+          <div class="ctrl-row"><label>Tasa de mortalidad (‰)</label><input type="range" min="3" max="20" step="0.5" value="7" id="d-m" oninput="updateSim(0)"><span class="ctrl-val" id="d-m-v">7‰</span></div>
+        </div>
+        <button class="analyze-btn" id="analyze-btn-0">Generar análisis profundo ↗</button>
+      </div>
+      <div class="sim-output">
+        <div class="metrics-row" id="d-metrics"></div>
+        <div class="chart-panel">
+          <div class="chart-title">Proyección poblacional 2025–2075</div>
+          <div style="position:relative;height:200px"><canvas id="chart-d"></canvas></div>
+        </div>
+        <div class="risks-timeline-row">
+          <div class="risk-panel"><div class="panel-title">Riesgos estructurales</div><div id="d-risks"></div></div>
+          <div class="tl-panel"><div class="panel-title">Línea temporal</div><div id="d-tl"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 1: MIGRACIÓN -->
+    <div class="sim-panel" id="spanel-1">
+      <div class="sim-controls">
+        <div class="ctrl-group">
+          <div class="ctrl-label">Parámetros migratorios</div>
+          <div class="ctrl-row"><label>Tasa de emigración (‰/año)</label><input type="range" min="0" max="50" step="1" value="15" id="mg-e" oninput="updateSim(1)"><span class="ctrl-val" id="mg-e-v">15‰</span></div>
+          <div class="ctrl-row"><label>Tasa de inmigración (‰/año)</label><input type="range" min="0" max="50" step="1" value="5" id="mg-i" oninput="updateSim(1)"><span class="ctrl-val" id="mg-i-v">5‰</span></div>
+          <div class="ctrl-row"><label>Población base (millones)</label><input type="range" min="5" max="200" step="1" value="50" id="mg-p" oninput="updateSim(1)"><span class="ctrl-val" id="mg-p-v">50M</span></div>
+          <div class="ctrl-row"><label>% emigrantes en edad laboral</label><input type="range" min="30" max="90" step="1" value="70" id="mg-l" oninput="updateSim(1)"><span class="ctrl-val" id="mg-l-v">70%</span></div>
+          <div class="ctrl-row"><label>Remesas enviadas (% del PIB)</label><input type="range" min="0" max="25" step="0.5" value="5" id="mg-r" oninput="updateSim(1)"><span class="ctrl-val" id="mg-r-v">5%</span></div>
+        </div>
+        <button class="analyze-btn" id="analyze-btn-1">Generar análisis profundo ↗</button>
+      </div>
+      <div class="sim-output">
+        <div class="metrics-row" id="mg-metrics"></div>
+        <div class="chart-panel">
+          <div class="chart-title">Proyección poblacional 2025–2075</div>
+          <div style="position:relative;height:200px"><canvas id="chart-mg"></canvas></div>
+        </div>
+        <div class="risks-timeline-row">
+          <div class="risk-panel"><div class="panel-title">Riesgos estructurales</div><div id="mg-risks"></div></div>
+          <div class="tl-panel"><div class="panel-title">Línea temporal</div><div id="mg-tl"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 2: ECONÓMICO -->
+    <div class="sim-panel" id="spanel-2">
+      <div class="sim-controls">
+        <div class="ctrl-group">
+          <div class="ctrl-label">Parámetros económicos</div>
+          <div class="ctrl-row"><label>Caída del PIB per cápita (%)</label><input type="range" min="0" max="70" step="1" value="30" id="ec-g" oninput="updateSim(2)"><span class="ctrl-val" id="ec-g-v">-30%</span></div>
+          <div class="ctrl-row"><label>Tasa de desempleo (%)</label><input type="range" min="5" max="60" step="1" value="25" id="ec-u" oninput="updateSim(2)"><span class="ctrl-val" id="ec-u-v">25%</span></div>
+          <div class="ctrl-row"><label>Inflación anual (%)</label><input type="range" min="0" max="500" step="10" value="80" id="ec-in" oninput="updateSim(2)"><span class="ctrl-val" id="ec-in-v">80%</span></div>
+          <div class="ctrl-row"><label>Población base (millones)</label><input type="range" min="5" max="200" step="1" value="50" id="ec-p" oninput="updateSim(2)"><span class="ctrl-val" id="ec-p-v">50M</span></div>
+          <div class="ctrl-row"><label>Cobertura salud (%)</label><input type="range" min="10" max="100" step="5" value="60" id="ec-h" oninput="updateSim(2)"><span class="ctrl-val" id="ec-h-v">60%</span></div>
+        </div>
+        <button class="analyze-btn" id="analyze-btn-2">Generar análisis profundo ↗</button>
+      </div>
+      <div class="sim-output">
+        <div class="metrics-row" id="ec-metrics"></div>
+        <div class="chart-panel">
+          <div class="chart-title">Proyección poblacional 2025–2075</div>
+          <div style="position:relative;height:200px"><canvas id="chart-ec"></canvas></div>
+        </div>
+        <div class="risks-timeline-row">
+          <div class="risk-panel"><div class="panel-title">Riesgos estructurales</div><div id="ec-risks"></div></div>
+          <div class="tl-panel"><div class="panel-title">Línea temporal</div><div id="ec-tl"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 3: CRECIMIENTO -->
+    <div class="sim-panel" id="spanel-3">
+      <div class="sim-controls">
+        <div class="ctrl-group">
+          <div class="ctrl-label">Parámetros de crecimiento</div>
+          <div class="ctrl-row"><label>Tasa de fecundidad (hijos/mujer)</label><input type="range" min="2" max="7" step="0.1" value="4.5" id="gr-f" oninput="updateSim(3)"><span class="ctrl-val" id="gr-f-v">4.5</span></div>
+          <div class="ctrl-row"><label>Población base (millones)</label><input type="range" min="5" max="200" step="1" value="50" id="gr-p" oninput="updateSim(3)"><span class="ctrl-val" id="gr-p-v">50M</span></div>
+          <div class="ctrl-row"><label>Tasa de urbanización (%)</label><input type="range" min="20" max="95" step="1" value="55" id="gr-u" oninput="updateSim(3)"><span class="ctrl-val" id="gr-u-v">55%</span></div>
+          <div class="ctrl-row"><label>Capacidad alimentaria (kcal/día)</label><input type="range" min="1000" max="4000" step="100" value="2200" id="gr-fo" oninput="updateSim(3)"><span class="ctrl-val" id="gr-fo-v">2200</span></div>
+          <div class="ctrl-row"><label>Inversión en educación (% PIB)</label><input type="range" min="1" max="15" step="0.5" value="4" id="gr-e" oninput="updateSim(3)"><span class="ctrl-val" id="gr-e-v">4%</span></div>
+        </div>
+        <button class="analyze-btn" id="analyze-btn-3">Generar análisis profundo ↗</button>
+      </div>
+      <div class="sim-output">
+        <div class="metrics-row" id="gr-metrics"></div>
+        <div class="chart-panel">
+          <div class="chart-title">Proyección poblacional 2025–2075</div>
+          <div style="position:relative;height:200px"><canvas id="chart-gr"></canvas></div>
+        </div>
+        <div class="risks-timeline-row">
+          <div class="risk-panel"><div class="panel-title">Riesgos estructurales</div><div id="gr-risks"></div></div>
+          <div class="tl-panel"><div class="panel-title">Línea temporal</div><div id="gr-tl"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- METHODOLOGY -->
+<div id="methodology">
+  <div class="section-tag">Motor analítico</div>
+  <div class="section-title">Lógica <em>causal</em> en cadena</div>
+  <p class="section-sub">JVision AI no proyecta tendencias lineales. Modela sistemas complejos con retroalimentación entre variables demográficas, económicas y sociales.</p>
+
+  <div class="method-grid">
+    <div class="method-steps">
+      <div class="method-step">
+        <div class="step-num">01</div>
+        <div>
+          <div class="step-title">Entrada de parámetros estructurales</div>
+          <div class="step-desc">El usuario define las condiciones iniciales del sistema: población, tasas vitales, variables económicas y cobertura de servicios.</div>
+        </div>
+      </div>
+      <div class="method-step">
+        <div class="step-num">02</div>
+        <div>
+          <div class="step-title">Cálculo de tasas de cambio derivadas</div>
+          <div class="step-desc">El motor infiere variables secundarias: crecimiento vegetativo, ratio de dependencia, estrés fiscal, presión urbana y emigración forzada.</div>
+        </div>
+      </div>
+      <div class="method-step">
+        <div class="step-num">03</div>
+        <div>
+          <div class="step-title">Proyección temporal multivariable</div>
+          <div class="step-desc">Genera curvas para 8 horizontes temporales (2025–2075) aplicando modelos de crecimiento compuesto con factores de corrección no lineales.</div>
+        </div>
+      </div>
+      <div class="method-step">
+        <div class="step-num">04</div>
+        <div>
+          <div class="step-title">Evaluación de umbrales de colapso</div>
+          <div class="step-desc">Compara las proyecciones contra umbrales críticos por dominio (fiscal, alimentario, laboral, sanitario) para identificar puntos de quiebre.</div>
+        </div>
+      </div>
+      <div class="method-step">
+        <div class="step-num">05</div>
+        <div>
+          <div class="step-title">Narrativa causal con IA</div>
+          <div class="step-desc">El motor de IA interpreta los datos cuantitativos y genera una cadena explicativa de causa–efecto con recomendaciones de intervención.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="method-visual">
+      <div class="panel-title" style="margin-bottom:1.5rem">Ejemplo: cadena causal — declive</div>
+      <div class="causal-flow">
+        <div class="cf-node cf-a">Caída de la fecundidad (1.3 hijos/mujer)</div>
+        <div class="cf-arrow">↓</div>
+        <div class="cf-node cf-b">Reducción de la base poblacional joven</div>
+        <div class="cf-arrow">↓</div>
+        <div class="flow-label">si no hay compensación migratoria</div>
+        <div class="cf-node cf-b">Contracción de la fuerza laboral activa</div>
+        <div class="cf-arrow">↓</div>
+        <div class="cf-node cf-c">Aumento del ratio de dependencia (1:1.2)</div>
+        <div class="cf-arrow">↓</div>
+        <div class="cf-node cf-c">Insostenibilidad fiscal del sistema de pensiones</div>
+        <div class="cf-arrow">↓</div>
+        <div class="cf-node cf-d">Colapso estructural del estado de bienestar</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">
+      <div class="footer-mark">
+        <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
+          <circle cx="9" cy="9" r="3" fill="#06080f"/>
+          <path d="M9 2v2M9 14v2M2 9h2M14 9h2" stroke="#06080f" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      JVision AI
+    </div>
+    <div class="footer-links">
+      <a href="#features">Módulos</a>
+      <a href="#simulator">Simulador</a>
+      <a href="#methodology">Metodología</a>
+    </div>
+    <div class="footer-copy">© 2025 JVision AI. Plataforma de simulación demográfica.</div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const YEARS = [2025,2030,2035,2040,2045,2050,2060,2075];
+const YL = YEARS.map(String);
+let charts = {};
+
+const COLORS = ['#4af4a8','#a78bfa','#f97316','#f4d44a'];
+const COLORS2 = ['rgba(74,244,168,0.12)','rgba(167,139,250,0.12)','rgba(249,115,22,0.12)','rgba(244,212,74,0.12)'];
+const RCOLORS = ['#f4504a','#f97316','#a78bfa'];
+
+function switchSim(idx) {
+  document.querySelectorAll('.stab').forEach((b,i)=>b.classList.toggle('active',i===idx));
+  document.querySelectorAll('.sim-panel').forEach((p,i)=>p.classList.toggle('active',i===idx));
+}
+
+function mkChart(id, data1, data2, label1, label2, color) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  charts[id] = new Chart(ctx, {
+    type:'line',
+    data:{ labels:YL, datasets:[
+      { label:label1, data:data1, borderColor:color, backgroundColor:color.replace(')',',0.08)').replace('rgb','rgba'), tension:0.4, fill:true, borderWidth:2, pointRadius:3 },
+      { label:label2, data:data2, borderColor:'#f4504a', tension:0.4, borderWidth:1.5, pointRadius:2, borderDash:[4,4] }
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:true, position:'bottom', labels:{ color:'#8b95ad', boxWidth:10, font:{size:10,family:'DM Mono'} } } },
+      scales:{
+        x:{ ticks:{color:'#4a5270',font:{size:10,family:'DM Mono'}}, grid:{color:'rgba(255,255,255,0.04)'} },
+        y:{ ticks:{color:'#4a5270',font:{size:10,family:'DM Mono'}}, grid:{color:'rgba(255,255,255,0.04)'} }
+      }
+    }
+  });
+}
+
+function setMetrics(id, items) {
+  document.getElementById(id).innerHTML = items.map(m=>
+    `<div class="metric-tile ${m.cls||''}">
+      <div class="mt-label">${m.label}</div>
+      <div class="mt-val">${m.val}</div>
+      <div class="mt-sub">${m.sub||''}</div>
+    </div>`).join('');
+}
+
+function setRisks(id, risks) {
+  document.getElementById(id).innerHTML = risks.map(r=>{
+    const c = r.v>75?'#f4504a':r.v>45?'#f97316':'#4af4a8';
+    return `<div class="risk-row">
+      <div class="risk-header"><span>${r.n}</span><span style="font-family:var(--font-mono);color:${c}">${r.v}%</span></div>
+      <div class="risk-bar-bg"><div class="risk-bar-fill" style="width:${r.v}%;background:${c}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function setTimeline(id, items) {
+  document.getElementById(id).innerHTML = items.map((t,i)=>
+    `<div class="tl-item">
+      <div class="tl-line"><div class="tl-dot" style="background:${t.c}"></div>${i<items.length-1?'<div class="tl-stem"></div>':''}</div>
+      <div class="tl-content"><div class="tl-year">${t.y}</div><div class="tl-text">${t.t}</div></div>
+    </div>`).join('');
+}
+
+function updateSim(idx) {
+  if(idx===0) updateDecline();
+  if(idx===1) updateMigration();
+  if(idx===2) updateEconomic();
+  if(idx===3) updateGrowth();
+}
+
+function updateDecline() {
+  const f=+document.getElementById('d-f').value;
+  const p=+document.getElementById('d-p').value;
+  const e=+document.getElementById('d-e').value;
+  const s=+document.getElementById('d-s').value;
+  const m=+document.getElementById('d-m').value;
+  document.getElementById('d-f-v').textContent=f.toFixed(1);
+  document.getElementById('d-p-v').textContent=p+'M';
+  document.getElementById('d-e-v').textContent=e+'%';
+  document.getElementById('d-s-v').textContent=s+'%';
+  document.getElementById('d-m-v').textContent=m+'‰';
+
+  const gr=(f*0.23)-(m/10);
+  const pops=YEARS.map(y=>Math.max(1,Math.round(p*Math.pow(1+gr/100,(y-2025)))));
+  const elder=YEARS.map((_,i)=>Math.min(55,+(e+i*(f<1.5?2.2:f<2.1?1.0:0.3)).toFixed(1)));
+  const fp=pops[pops.length-1], fe=+elder[elder.length-1].toFixed(0);
+  const rw=Math.round(100/Math.max(1,100-fe));
+  const ps=Math.min(100,Math.round(s*(fe/15)));
+
+  mkChart('chart-d',pops,elder.map(v=>+v.toFixed(0)),'Población (M)','% Mayores 65','#4af4a8');
+  setMetrics('d-metrics',[
+    {label:'Población 2075',val:fp+'M',sub:fp<p?'↓ Declive':'↑ Crecimiento',cls:fp<p?'mt-danger':'mt-ok'},
+    {label:'% Mayores 65',val:fe+'%',sub:'Año 2075',cls:fe>25?'mt-danger':'mt-warn'},
+    {label:'Ratio dependencia',val:'1:'+rw,sub:'trabajadores/jubilado',cls:rw<2?'mt-danger':''},
+    {label:'Estrés pensiones',val:ps+'%',sub:'Presión fiscal',cls:ps>70?'mt-danger':'mt-warn'}
+  ]);
+  const r1=Math.min(100,Math.round(ps*1.1)), r2=Math.min(100,f<1.3?85:f<1.8?55:20), r3=Math.min(100,Math.round(fe*2.5));
+  setRisks('d-risks',[{n:'Colapso pensiones',v:r1},{n:'Déficit mano de obra',v:r2},{n:'Sobrecarga salud',v:r3},{n:'Contracción fiscal',v:Math.min(100,Math.round(r1*0.7))}]);
+  const tc=f<1.5?'#f4504a':'#f97316';
+  setTimeline('d-tl',[
+    {y:'2025–2035',c:'#4af4a8',t:'Descenso de natalidad, primeras señales en escuelas y mercado laboral.'},
+    {y:'2035–2045',c:tc,t:'Reducción de fuerza laboral, ratio de dependencia en aumento.'},
+    {y:'2045–2055',c:tc,t:f<1.5?'Crisis fiscal en pensiones, déficit insostenible.':'Presión moderada sobre bienestar.'},
+    {y:'2055–2075',c:'#f4504a',t:f<1.3?'Riesgo de colapso demográfico y despoblación regional.':'Estabilización posible con migración.'}
+  ]);
+}
+
+function updateMigration() {
+  const em=+document.getElementById('mg-e').value, im=+document.getElementById('mg-i').value;
+  const p=+document.getElementById('mg-p').value, l=+document.getElementById('mg-l').value, r=+document.getElementById('mg-r').value;
+  document.getElementById('mg-e-v').textContent=em+'‰';
+  document.getElementById('mg-i-v').textContent=im+'‰';
+  document.getElementById('mg-p-v').textContent=p+'M';
+  document.getElementById('mg-l-v').textContent=l+'%';
+  document.getElementById('mg-r-v').textContent=r+'%';
+
+  const net=(im-em)/10;
+  const pops=YEARS.map(y=>Math.max(1,Math.round(p*Math.pow(1+net/100,(y-2025)))));
+  const ll=YEARS.map((_,i)=>Math.min(60,Math.round((em/10)*(l/100)*(YEARS[i]-2023))));
+  const fp=pops[pops.length-1], nb=im-em, li=Math.min(60,Math.round(em*l/100*2));
+
+  mkChart('chart-mg',pops,ll,'Población (M)','% Pérdida laboral acum.','#a78bfa');
+  setMetrics('mg-metrics',[
+    {label:'Población 2075',val:fp+'M',sub:nb>0?'Saldo +':'Saldo —',cls:nb<0?'mt-danger':'mt-ok'},
+    {label:'Saldo migratorio',val:(nb>0?'+':'')+nb+'‰',sub:'Por cada 1000 hab.',cls:nb<0?'mt-danger':''},
+    {label:'Pérdida laboral',val:li+'%',sub:'Acum. a 20 años',cls:li>30?'mt-danger':'mt-warn'},
+    {label:'Remesas / PIB',val:r+'%',sub:r>10?'Alto riesgo':'Moderado',cls:r>10?'mt-warn':''}
+  ]);
+  setRisks('mg-risks',[
+    {n:'Fuga de talento',v:Math.min(100,Math.round(em*l*0.8))},
+    {n:'Desestructuración familiar',v:Math.min(100,Math.round(em*3))},
+    {n:'Dependencia de remesas',v:Math.min(100,Math.round(r*6))},
+    {n:'Déficit servicios públicos',v:Math.min(100,Math.max(0,Math.round(em*2-im)))}
+  ]);
+  setTimeline('mg-tl',[
+    {y:'2025–2030',c:'#f97316',t:'Primeras oleadas emigratorias, sectores clave con vacantes crecientes.'},
+    {y:'2030–2040',c:em>20?'#f4504a':'#f97316',t:'Reducción de la base fiscal, servicios bajo presión sostenida.'},
+    {y:'2040–2055',c:'#f4504a',t:em>25?'Espiral emigratoria, colapso de zonas rurales y ciudades medianas.':'Estabilización posible con políticas de retorno.'},
+    {y:'2055–2075',c:'#4af4a8',t:'Posible reversión si condiciones económicas estructurales mejoran.'}
+  ]);
+}
+
+function updateEconomic() {
+  const g=+document.getElementById('ec-g').value, u=+document.getElementById('ec-u').value;
+  const inf=+document.getElementById('ec-in').value, p=+document.getElementById('ec-p').value, h=+document.getElementById('ec-h').value;
+  document.getElementById('ec-g-v').textContent='-'+g+'%';
+  document.getElementById('ec-u-v').textContent=u+'%';
+  document.getElementById('ec-in-v').textContent=inf+'%';
+  document.getElementById('ec-p-v').textContent=p+'M';
+  document.getElementById('ec-h-v').textContent=h+'%';
+
+  const nd=g*0.015+u*0.02, mr=g*0.02+(100-h)*0.05, er=g*0.15+u*0.1;
+  const gb=-nd/100-mr/1000-er/1000;
+  const pops=YEARS.map(y=>Math.max(1,Math.round(p*Math.pow(1+gb,(y-2025)))));
+  const le=YEARS.map((_,i)=>Math.max(45,Math.round(72-g*0.08-(100-h)*0.05+i*0.3)));
+  const fp=pops[pops.length-1], fl=le[le.length-1], pr=Math.min(100,Math.round(u*1.5+g*0.5));
+
+  mkChart('chart-ec',pops,le,'Población (M)','Esperanza de vida','#f97316');
+  setMetrics('ec-metrics',[
+    {label:'Población 2075',val:fp+'M',sub:'vs '+p+'M base',cls:fp<p?'mt-danger':''},
+    {label:'Esperanza de vida',val:fl+' años',sub:'Proyección 2075',cls:fl<65?'mt-danger':'mt-warn'},
+    {label:'Riesgo pobreza',val:pr+'%',sub:'Índice vulnerabilidad',cls:pr>60?'mt-danger':'mt-warn'},
+    {label:'Emigración forzada',val:Math.min(99,Math.round(er))+'‰',sub:'Presión anual',cls:er>20?'mt-danger':''}
+  ]);
+  setRisks('ec-risks',[
+    {n:'Hambre y desnutrición',v:Math.min(100,Math.round(g*0.6+(100-h)*0.4))},
+    {n:'Colapso sistema de salud',v:Math.min(100,Math.round((100-h)*0.8+inf*0.05))},
+    {n:'Inestabilidad política',v:Math.min(100,Math.round(u*1.2+g*0.4))},
+    {n:'Migración forzada masiva',v:Math.min(100,Math.round(er*2))}
+  ]);
+  setTimeline('ec-tl',[
+    {y:'2025–2027',c:'#f97316',t:'Caída del PIB, desempleo masivo, contracción del consumo e inversión.'},
+    {y:'2027–2032',c:'#f4504a',t:g>40?'Colapso de servicios básicos, éxodo urbano masivo.':'Crisis sistémica, reducción de inversión pública sostenida.'},
+    {y:'2032–2045',c:'#f4504a',t:'Descenso natalidad, aumento mortalidad evitable, brecha sanitaria.'},
+    {y:'2045–2075',c:'#4af4a8',t:'Recuperación gradual condicionada a intervención estructural externa.'}
+  ]);
+}
+
+function updateGrowth() {
+  const f=+document.getElementById('gr-f').value, p=+document.getElementById('gr-p').value;
+  const u=+document.getElementById('gr-u').value, fo=+document.getElementById('gr-fo').value, e=+document.getElementById('gr-e').value;
+  document.getElementById('gr-f-v').textContent=f.toFixed(1);
+  document.getElementById('gr-p-v').textContent=p+'M';
+  document.getElementById('gr-u-v').textContent=u+'%';
+  document.getElementById('gr-fo-v').textContent=fo;
+  document.getElementById('gr-e-v').textContent=e+'%';
+
+  const gr=f*0.22-0.7;
+  const pops=YEARS.map(y=>Math.round(p*Math.pow(1+gr/100,(y-2025))));
+  const fs=pops.map(pop=>Math.min(100,Math.round((pop/p)*(2000/fo)*60)));
+  const fp=pops[pops.length-1], us=Math.min(100,Math.round(u*(fp/p)*0.6)), eg=Math.min(100,Math.max(0,Math.round((fp/p-1)*50-e*5)));
+
+  mkChart('chart-gr',pops,fs,'Población (M)','Estrés alimentario (%)','#f4d44a');
+  setMetrics('gr-metrics',[
+    {label:'Población 2075',val:fp+'M',sub:Math.round(fp/p)+'x la base',cls:fp>p*3?'mt-danger':'mt-warn'},
+    {label:'Tasa crecimiento',val:'+'+gr.toFixed(1)+'%/año',sub:'Crecimiento vegetativo',cls:'mt-warn'},
+    {label:'Presión urbana',val:us+'%',sub:'Saturación de ciudades',cls:us>70?'mt-danger':'mt-warn'},
+    {label:'Brecha educativa',val:eg+'%',sub:'Déficit escolar',cls:eg>50?'mt-danger':''}
+  ]);
+  setRisks('gr-risks',[
+    {n:'Inseguridad alimentaria',v:Math.min(100,Math.round((fp/p)*(2000/fo)*50))},
+    {n:'Saturación urbana',v:Math.min(100,us)},
+    {n:'Desempleo juvenil',v:Math.min(100,Math.round((fp/p)*20-e*3))},
+    {n:'Degradación ambiental',v:Math.min(100,Math.round((fp/p)*25))}
+  ]);
+  setTimeline('gr-tl',[
+    {y:'2025–2035',c:'#f97316',t:'Demanda educativa y habitacional supera capacidad instalada.'},
+    {y:'2035–2050',c:'#f4504a',t:f>5?'Presión crítica sobre agua, suelo y seguridad alimentaria.':'Crecimiento manejable con inversión sostenida.'},
+    {y:'2050–2060',c:'#f4504a',t:'Urbanización descontrolada, expansión de cinturones de pobreza.'},
+    {y:'2060–2075',c:f>5?'#f4504a':'#f97316',t:f>5?'Riesgo de colapso malthusiano sin intervención urgente.':'Transición demográfica posible con educación y planificación.'}
+  ]);
+}
+
+document.getElementById('analyze-btn-0').onclick=()=>{
+  const f=document.getElementById('d-f').value, p=document.getElementById('d-p').value, e=document.getElementById('d-e').value;
+  alert('Para análisis profundo con IA, usa la versión con chat integrado.\n\nParámetros: fecundidad='+f+', población='+p+'M, mayores65='+e+'%');
+};
+document.getElementById('analyze-btn-1').onclick=()=>alert('Análisis IA disponible en versión con chat. Parámetros capturados.');
+document.getElementById('analyze-btn-2').onclick=()=>alert('Análisis IA disponible en versión con chat. Parámetros capturados.');
+document.getElementById('analyze-btn-3').onclick=()=>alert('Análisis IA disponible en versión con chat. Parámetros capturados.');
+
+updateSim(0);updateSim(1);updateSim(2);updateSim(3);
+</script>
+</body>
+</html>
